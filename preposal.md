@@ -1,13 +1,5 @@
-# Preproposal
+Preproposal
 
-## What idea(s) do you have for your final project?
+I want to create a turn based boss rush game where you start off with one character beat a boss and that boss gets added to your team
 
-TODO
-
-## If you plan to collaborate with one or two classmates, what are their names?
-
-TODO
-
-## Do you have any questions of your own?
-
-TODO
+my main quest is which program would you recommend most for this?
