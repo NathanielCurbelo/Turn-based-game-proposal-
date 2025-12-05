@@ -1,332 +1,391 @@
 import pygame
 import random
+import os
 
 pygame.init()
 
 clock = pygame.time.Clock()
-fps= 50
+fps = 50
 
-#window
-bottomMenu= 350
+# WINDOW SETUP
+bottomMenu = 350
 screenWidth = 2000
-screenHeight= 1000+ bottomMenu
+screenHeight = 1000 + bottomMenu
 
 screen = pygame.display.set_mode((screenWidth, screenHeight))
 pygame.display.set_caption('battlel')
 
-#game variables
-currentTurn=1
-totalFighter=2
-actionCooldown= 0
-actionWaitTime=90
-attack = False
-potion = False
+# GAME VARIABLES
+currentTurn = 1
+totalFighter = 2
+actionCooldown = 0
+actionWaitTime = 90
 clicked = False
 
-#font
-font = pygame.font.SysFont('Times New Roman',50)
+# FONT
+font = pygame.font.SysFont('Times New Roman', 50)
 
-#colors
-white= (255,255,255)
-red= (255,0,0)
-green= (0,255,0)
+# COLORS
+white = (255, 255, 255)
+red = (255, 0, 0)
+green = (0, 255, 0)
 
-#images
-battle1= pygame.image.load('img/backgrounds/graveyard.jpg').convert_alpha()
-battle1= pygame.transform.scale(battle1, (screenWidth,screenHeight-bottomMenu))
+# IMAGES
+battle1 = pygame.image.load('img/backgrounds/graveyard.jpg').convert_alpha()
+battle1 = pygame.transform.scale(battle1, (screenWidth, screenHeight - bottomMenu))
 
-#bottom menu
-menuPic= pygame.image.load('img/menu/battleMenu.png').convert_alpha()
-menuPic= pygame.transform.scale(menuPic, (screenWidth,bottomMenu))
+menuPic = pygame.image.load('img/menu/battleMenu.png').convert_alpha()
+menuPic = pygame.transform.scale(menuPic, (screenWidth, bottomMenu))
 
-#cursor
-mousePic= pygame.image.load('img/menu/mouse.png').convert_alpha()
+attack_icon = pygame.image.load('img/skill/physical.png').convert_alpha()
+attack_icon = pygame.transform.scale(attack_icon, (200, 200))
 
-#draw text function
-def draw_text(text,font,text_col,x,y):
-    img= font.render(text,True,text_col)
-    screen.blit(img,(x,y))
-    
-#function for backgrounds
+heal_icon   = pygame.image.load('img/skill/heal.png').convert_alpha()
+heal_icon = pygame.transform.scale(heal_icon, (200, 200))
+
+magic_icon  = pygame.image.load('img/skill/magic.png').convert_alpha()
+magic_icon = pygame.transform.scale(magic_icon, (200, 200))
+
+shield_icon  = pygame.image.load('img/skill/shield.png').convert_alpha()
+shield_icon = pygame.transform.scale(shield_icon, (200, 200))
+
+# TEXT DRAWING
+def draw_text(text, font, text_col, x, y):
+    img = font.render(text, True, text_col)
+    screen.blit(img, (x, y))
+
+# BACKGROUNDS
 def draw_b1():
-    screen.blit(battle1,(0,0))
-    
-#function for drawing bottom menu
+    screen.blit(battle1, (0, 0))
+
+# BOTTOM MENU
 def draw_botMenu():
-    #drawing menu
-    screen.blit(menuPic,(0,screenHeight-bottomMenu))
-    #healer stats
-    draw_text(f'{healer.name} HP: {healer.hp}',font,white,100,0)
-    #mob skully
-    draw_text(f'{skully.name} HP: {skully.hp}',font,red,1600,0)
-    
-#healer class
+    screen.blit(menuPic, (0, screenHeight - bottomMenu))
+    draw_text(f'{healer.name} HP: {healer.hp}', font, white, 100, 0)
+    draw_text(f'{skully.name} HP: {skully.hp}', font, red, 1600, 0)
+
+# BUTTON CLASS
+class Button():
+    def __init__(self, x, y, image, scale, action=None):
+        width = image.get_width()
+        height = image.get_height()
+        self.image = pygame.transform.scale(image, (int(width * scale), int(height * scale)))
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+        self.clicked = False
+        self.action = action
+
+    def draw(self, surface):
+        action_triggered = False
+        pos = pygame.mouse.get_pos()
+
+        if self.rect.collidepoint(pos):
+            if pygame.mouse.get_pressed()[0] == 1 and not self.clicked:
+                self.clicked = True
+                action_triggered = True
+                if self.action:
+                    self.action()
+
+        if pygame.mouse.get_pressed()[0] == 0:
+            self.clicked = False
+
+        surface.blit(self.image, (self.rect.x, self.rect.y))
+        return action_triggered
+
+# HEALER CLASS
 class healer():
     def __init__(self, x, y, name, max_hp, strength, potions):
         self.name = name
         self.max_hp = max_hp
         self.hp = max_hp
         self.strength = strength
-        self.start_potions = potions
         self.potions = potions
         self.alive = True
         self.animation_list = []
         self.frame_index = 0
-        self.action = 0#0:idle, 1:attack, 2:hurt, 3:dead
+        self.action = 0
         self.update_time = pygame.time.get_ticks()
-        #load idle images
+        self.shielded = False
+
+        # idle animation
         temp_list = []
         for i in range(4):
             img = pygame.image.load(f'img/{self.name}/idle/{i}.png')
-            img = pygame.transform.scale(img, (img.get_width() * 3, img.get_height() * 3))
+            img = pygame.transform.scale(img, (img.get_width()*3, img.get_height()*3))
             temp_list.append(img)
         self.animation_list.append(temp_list)
-        #load attack images
+
+        # attack animation
         temp_list = []
         for i in range(4):
             img = pygame.image.load(f'img/{self.name}/physical/{i}.png')
-            img = pygame.transform.scale(img, (img.get_width() * 3, img.get_height() * 3))
+            img = pygame.transform.scale(img, (img.get_width()*3, img.get_height()*3))
             temp_list.append(img)
         self.animation_list.append(temp_list)
-        self.image = self.animation_list[self.action][self.frame_index]
-        self.rect = self.image.get_rect()
-        self.rect.center = (x, y)
+
+        # magic animation
         temp_list = []
         for i in range(4):
             img = pygame.image.load(f'img/{self.name}/magic/{i}.png')
-            img = pygame.transform.scale(img, (img.get_width() * 3, img.get_height() * 3))
+            img = pygame.transform.scale(img, (img.get_width()*3, img.get_height()*3))
             temp_list.append(img)
         self.animation_list.append(temp_list)
 
+        self.image = self.animation_list[self.action][self.frame_index]
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
 
     def update(self):
         animation_cooldown = 200
-	#handle animation
-	#update image
         self.image = self.animation_list[self.action][self.frame_index]
-        #check if enough time has passed since the last update
+
         if pygame.time.get_ticks() - self.update_time > animation_cooldown:
             self.update_time = pygame.time.get_ticks()
             self.frame_index += 1
-            #if the animation has run out then reset back to the start
+
         if self.frame_index >= len(self.animation_list[self.action]):
             self.idle()
-            
+
     def idle(self):
-        #set variables to attack animation
         self.action = 0
         self.frame_index = 0
         self.update_time = pygame.time.get_ticks()
 
-            
     def attack(self, target):
-        #dmg
-        ran= random.randint(-5,5)
-        damage= self.strength + ran
-        target.hp = target.hp - damage
-        #check if death
-        if target.hp<1:
-            target.hp = 0
-            target.alive =False
-        #set variables to attack
-        self.action=1
-        self.frame_index=0
-        self.update_time = pygame.time.get_ticks()
-        
-    def magic(self, target):
-        #dmg
-        ran= random.randint(-5,5)
-        damage= self.strength + ran
-        target.hp = target.hp - damage
-        #check if death
-        if target.hp<1:
-            target.hp = 0
-            target.alive =False
-        #set variables to attack
-        self.action=2
-        self.frame_index=0
-        self.update_time = pygame.time.get_ticks()
-        
-    def heal(self, target):
-        #check if death
-        if target.hp<=0:
-            target.hp=1
+        # Check shield
+        if target.shielded:
+            dmg = (self.strength + random.randint(10, 20)) // 2
+            target.shielded = False
         else:
-            #dmg
-            ran= random.randint(-5,5)
-            damage= self.strength + ran
-            target.hp = target.hp + damage
-            if target.hp>self.max_hp:
-                target.hp= self.max_hp
-        
-        #set variables to attack
-        self.action=2
-        self.frame_index=0
+            dmg = self.strength + random.randint(10, 20)
+
+        # Apply damage
+        target.hp -= dmg
+        if target.hp <= 0:
+            target.hp = 0
+            target.alive = False
+
+        # Play attack animation
+        self.action = 1
+        self.frame_index = 0
         self.update_time = pygame.time.get_ticks()
+
+
+    def magic(self, target):
+        # Check shield
+        if target.shielded:
+            dmg = (self.strength + random.randint(10, 20)) // 2
+            target.shielded = False
+        else:
+            dmg = self.strength + random.randint(10, 20)
+
+        # Apply damage
+        target.hp -= dmg
+        if target.hp <= 0:
+            target.hp = 0
+            target.alive = False
+
+        # Play magic animation
+        self.action = 2
+        self.frame_index = 0
+        self.update_time = pygame.time.get_ticks()
+
+
+    def heal(self, target):
+        heal_amount = self.strength + random.randint(10, 20)
+        target.hp += heal_amount
+
+        if target.hp > self.max_hp:
+            target.hp = self.max_hp
+        if target.hp <= 0:
+            target.hp = 1
+
+        self.action = 2
+        self.frame_index = 0
+        self.update_time = pygame.time.get_ticks()
+
+    def shield(self, target):
+        # Set a shield flag on the target
+        target.shielded = True  # this must exist on the target
+        # Play shield/magic animation
+        self.action = 2
+        self.frame_index = 0
+        self.update_time = pygame.time.get_ticks()
+
 
     def draw(self):
         screen.blit(self.image, self.rect)
-        
 
-#skully class
+# SKULLY CLASS
 class skully():
     def __init__(self, x, y, name, max_hp, strength, potions):
         self.name = name
         self.max_hp = max_hp
         self.hp = max_hp
         self.strength = strength
-        self.start_potions = potions
         self.potions = potions
         self.alive = True
         self.animation_list = []
         self.frame_index = 0
-        self.action = 0#0:idle, 1:attack, 2:hurt, 3:magic
+        self.action = 0
         self.update_time = pygame.time.get_ticks()
-        #load idle images
+        self.shielded = False
+
+        # idle animation
         temp_list = []
         for i in range(5):
             img = pygame.image.load(f'img/{self.name}/idle/{i}.png')
-            img = pygame.transform.scale(img, (img.get_width() * 1.5, img.get_height() * 1.5))
+            img = pygame.transform.scale(img, (int(img.get_width()*1.5), int(img.get_height()*1.5)))
             temp_list.append(img)
         self.animation_list.append(temp_list)
-        #load attack images
+
+        # attack animation
         temp_list = []
         for i in range(5):
             img = pygame.image.load(f'img/{self.name}/Atk/{i}.png')
-            img = pygame.transform.scale(img, (img.get_width() * 1.5, img.get_height() * 1.5))
+            img = pygame.transform.scale(img, (int(img.get_width()*1.5), int(img.get_height()*1.5)))
             temp_list.append(img)
         self.animation_list.append(temp_list)
+
         self.image = self.animation_list[self.action][self.frame_index]
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
 
-
     def update(self):
         animation_cooldown = 200
-	#handle animation
-	#update image
         self.image = self.animation_list[self.action][self.frame_index]
-        #check if enough time has passed since the last update
+
         if pygame.time.get_ticks() - self.update_time > animation_cooldown:
             self.update_time = pygame.time.get_ticks()
             self.frame_index += 1
-            #if the animation has run out then reset back to the start
+
         if self.frame_index >= len(self.animation_list[self.action]):
             self.frame_index = 0
             self.idle()
-            
+
     def idle(self):
-        #set variables to attack animation
         self.action = 0
         self.frame_index = 0
         self.update_time = pygame.time.get_ticks()
 
-            
     def attack(self, target):
-        #dmg
-        ran= random.randint(-5,5)
-        damage= self.strength + ran
-        target.hp = target.hp - damage
-        #check if death
-        if target.hp<1:
+        # Check shield
+        if target.shielded:
+            dmg = (self.strength + random.randint(10, 20)) // 2
+            target.shielded = False
+        else:
+            dmg = self.strength + random.randint(10, 20)
+
+        # Apply damage
+        target.hp -= dmg
+        if target.hp <= 0:
             target.hp = 0
-            target.alive =False
-        #set variables to attack
-        self.action=1
-        self.frame_index=0
+            target.alive = False
+
+        # Play attack animation
+        self.action = 1
+        self.frame_index = 0
         self.update_time = pygame.time.get_ticks()
-        self.rect.x -=80
-        self.rect.x +=80
 
     def draw(self):
         screen.blit(self.image, self.rect)
 
-        
+# HEALTH BAR CLASS
 class HealthBar():
-	def __init__(self, x, y, hp, max_hp):
-		self.x = x
-		self.y = y
-		self.hp = hp
-		self.max_hp = max_hp
+    def __init__(self, x, y, hp, max_hp):
+        self.x = x
+        self.y = y
+        self.hp = hp
+        self.max_hp = max_hp
 
+    def draw(self, hp):
+        self.hp = hp
+        ratio = self.hp / self.max_hp
 
-	def draw(self, hp):
-		#update with new health
-		self.hp = hp
-		#calculate health ratio
-		ratio = self.hp / self.max_hp
-		pygame.draw.rect(screen, red, (self.x, self.y, 150, 20))
-		pygame.draw.rect(screen, green, (self.x, self.y, 150 * ratio, 20))
+        pygame.draw.rect(screen, red,   (self.x, self.y, 150, 20))
+        pygame.draw.rect(screen, green, (self.x, self.y, 150 * ratio, 20))
 
+#CREATE CHARACTERS
 healer = healer(200, 740, 'Healer', 100, 10, 3)
-skully = skully(700,710,'skully',100,6,1)
+skully = skully(700, 710, 'skully', 100, 6, 1)
 
 healer_health_bar = HealthBar(425, 20, healer.hp, healer.max_hp)
 skully_health_bar = HealthBar(1440, 20, skully.hp, skully.max_hp)
-    
-#game loop
-run= True
+
+# CREATE SKILL BUTTONS 
+
+# Attack button
+def attack_action():
+    healer.attack(skully)
+
+attack_button = Button(200, screenHeight - bottomMenu + 40, attack_icon, 1, attack_action)
+
+# Heal button
+def heal_action():
+    healer.heal(healer)
+
+heal_button = Button(450, screenHeight - bottomMenu + 40, heal_icon, 1, heal_action)
+
+# Magic button
+def magic_action():
+    healer.magic(skully)
+
+magic_button = Button(700, screenHeight - bottomMenu + 40, magic_icon, 1, magic_action)
+
+# Magic button
+def shield_action():
+    healer.shield(healer)
+
+shield_button = Button(950, screenHeight - bottomMenu + 40, shield_icon, 1, shield_action)
+
+# GAME LOOP
+
+run = True
 while run:
-    
-    #fps
+
     clock.tick(fps)
-    
-    #drawing background 
+
     draw_b1()
-    #drawing bottom menu
     draw_botMenu()
+
     healer_health_bar.draw(healer.hp)
     skully_health_bar.draw(skully.hp)
 
-    #unit drawing
     healer.update()
     healer.draw()
-    
+
     skully.update()
     skully.draw()
 
-    #control player actions 
-    #reset action variables
-    attack = False
-    potion = False
-    target = None
-    pos = pygame.mouse.get_pos()
+    
+    # PLAYER TURN (BUTTON ACTIONS)
+    if healer.alive and currentTurn == 1:
+        actionCooldown += 1
+        if actionCooldown >= actionWaitTime:
 
-    #player action
-    if healer.alive == True:
-        if currentTurn == 1:
-            menuPic= pygame.image.load('img/menu/healermenu.png').convert_alpha()
-            menuPic= pygame.transform.scale(menuPic, (screenWidth,bottomMenu))
-            
-            actionCooldown += 1
-            if actionCooldown >= actionWaitTime:
-            #look for player action
-            #attack
-                healer.heal(healer)
-                currentTurn += 1
+            attack_button.draw(screen)
+            heal_button.draw(screen)
+            magic_button.draw(screen)
+            shield_button.draw(screen)
+
+            # after any click
+            if pygame.mouse.get_pressed()[0] == 1:
+                currentTurn = 2
                 actionCooldown = 0
 
-
-    if skully.alive == True:
-        if currentTurn == 2:
-            actionCooldown += 1
-            if actionCooldown >= actionWaitTime:
-            #look for player action
-            #attack
-                skully.attack(healer) 
-                currentTurn += 1
-                actionCooldown = 0
-
-	#if all fighters have had a turn then reset
-        if currentTurn > totalFighter:
+    # ENEMY TURN
+    if skully.alive and currentTurn == 2:
+        actionCooldown += 1
+        if actionCooldown >= actionWaitTime:
+            skully.attack(healer)
             currentTurn = 1
+            actionCooldown = 0
 
-    
-    
-    
+    # QUIT EVENT
     for event in pygame.event.get():
-        if event.type== pygame.QUIT:
+        if event.type == pygame.QUIT:
             run = False
+
     pygame.display.update()
-        
+
 pygame.quit()
