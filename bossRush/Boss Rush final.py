@@ -601,7 +601,7 @@ while run:
     skully.update()
     skully.draw()
 
-    if skully.hp== 0:
+    if skully.hp== 0 and not mobMagican.alive:
         skully.hp = 0
         Allyskully.alive= True
         mobMagican.alive = True
@@ -628,8 +628,9 @@ while run:
         drawround2()
         
     # PLAYER TURN (BUTTON ACTIONS)
-    if healer.alive and currentTurn == 1:
-        actionCooldown += 1
+    if currentTurn == 1:
+        if healer.alive:
+            actionCooldown += 1
         if actionCooldown >= actionWaitTime:
             
             attack_button.draw(screen)
