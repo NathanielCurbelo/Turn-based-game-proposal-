@@ -75,8 +75,7 @@ def drawround2():
     draw_text(f'{healer.name} HP: {healer.hp}', font, white, 100, 0)
     draw_text(f'{skully.name} HP: {Allyskully.hp}', font, green, 100, 50)
     draw_text(f'{mobMagican.name} HP: {mobMagican.hp}', font, red, 1600, 0)
-
-# BUTTON CLASS
+    
 class Button():
     def __init__(self, x, y, image, scale, action=None):
         width = image.get_width()
@@ -607,13 +606,14 @@ while run:
         mobMagican.alive = True
 
         currentMob= mobMagican
-        draw_b2()
-
         healer.hp= 100
+        currentTurn=1
+
+    if skully.hp== 0: 
+        draw_b2()
         healer_health_bar.draw(healer.hp)
         Allyskully_health_bar.draw(Allyskully.hp)
         mobMagican_healthBar.draw(mobMagican.hp)
-        
         mobMagican.update()
         mobMagican.draw()
         
@@ -626,6 +626,10 @@ while run:
         Allyskully.update()
         Allyskully.draw()
         drawround2()
+        for i in range(100):
+            x = random.randint(1, 3)
+            currentTurn= x
+        
         
     # PLAYER TURN (BUTTON ACTIONS)
     if currentTurn == 1:
@@ -640,11 +644,11 @@ while run:
             
         if pygame.mouse.get_pressed()[0] == 1:
             if currentMob== skully:
-                currentTurn=3
+                currentTurn=4
                 actionCooldown =0
 
             if currentMob== magican:
-                currentTurn=4
+                currentTurn=3
                 actionCooldown =0
 
     if currentTurn == 2:
@@ -659,7 +663,7 @@ while run:
 
 
     # ENEMY TURN
-    if currentTurn == 3:
+    if currentTurn == 4:
         if skully.alive:
             actionCooldown += 1
             if actionCooldown >= actionWaitTime:
@@ -669,7 +673,7 @@ while run:
         else:
             currentTurn = 1  
             
-    if currentTurn == 4:
+    if currentTurn == 3:
         if mobMagican.alive:
             actionCooldown +=1
             if actionCooldown >= actionWaitTime:
